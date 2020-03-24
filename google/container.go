@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"google3/third_party/golang/hashicorp/terraform_plugin_sdk/helper/schema/schema"
 )
 
 func expandContainerEnabledObject(v interface{}, d TerraformResourceData, config *Config) (interface{}, error) {
@@ -178,6 +178,14 @@ func GetContainerClusterApiObject(d TerraformResourceData, config *Config) (map[
 	} else if v, ok := d.GetOkExists("private_cluster_config"); !isEmptyValue(reflect.ValueOf(privateClusterConfigProp)) && (ok || !reflect.DeepEqual(v, privateClusterConfigProp)) {
 		obj["privateClusterConfig"] = privateClusterConfigProp
 	}
+
+	workloadIdentityConfigProp, err := expandContainerClusterWorkloadIdentityConfig(d.Get("workload_identity_config"), d, config)
+	if err != nil {
+		return nil, err
+	} else if v, ok := d.GetOkExists("workload_identity_config"); !isEmptyValue(reflect.ValueOf(workloadIdentityConfigProp)) && (ok || !reflect.DeepEqual(v, workloadIdentityConfigProp)) {
+		obj["workloadIdentityConfig"] = workloadIdentityConfigProp
+	}
+
 	clusterIpv4CidrProp, err := expandContainerClusterClusterIpv4Cidr(d.Get("cluster_ipv4_cidr"), d, config)
 	if err != nil {
 		return nil, err
@@ -711,6 +719,28 @@ func expandContainerClusterMonitoringService(v interface{}, d TerraformResourceD
 	return v, nil
 }
 
+func expandContainerClusterWorkloadIdentityConfig(v interface{}, d TerraformResourceData, config *Config) (interface{}, error) {
+	l := v.([]interface{})
+	if len(l) == 0 || l[0] == nil {
+		return nil, nil
+	}
+	raw := l[0]
+	original := raw.(map[string]interface{})
+	transformed := make(map[string]interface{})
+
+	transformedWorkloadPool, err := expandContainerClusterWorkloadIdentityConfigWorkloadPool(original["identity_namespace"], d, config)
+	if err != nil {
+		return nil, err
+	} else if val := reflect.ValueOf(transformedWorkloadPool); val.IsValid() && !isEmptyValue(val) {
+		transformed["workloadPool"] = transformedWorkloadPool
+	}
+	return transformed, nil
+}
+
+func expandContainerClusterWorkloadIdentityConfigWorkloadPool(v interface{}, d TerraformResourceData, config *Config) (interface{}, error) {
+	return v, nil
+}
+
 func expandContainerClusterPrivateClusterConfig(v interface{}, d TerraformResourceData, config *Config) (interface{}, error) {
 	l := v.([]interface{})
 	if len(l) == 0 || l[0] == nil {
@@ -1100,8 +1130,8 @@ func expandContainerClusterMasterAuthorizedNetworksConfig(v interface{}, d Terra
 	original := raw.(map[string]interface{})
 	transformed := make(map[string]interface{})
 
-	// enabled is always true as long as there is a master_authorized_networks_config config block.
-	// There is no option in Terraform to disable that when master_authorized_networks_config is seen.
+	// API expect the enabled field to be set as true.
+	// This is manually added in the Terraform provider code as well in https://github.com/GoogleCloudPlatform/magic-modules/blob/435551bdd45b3d70d145125edae1c6a0dac3517b/third_party/terraform/resources/resource_container_cluster.go.erb#L2406
 	transformed["enabled"] = true
 
 	transformedCidrBlocks, err := expandContainerClusterMasterAuthorizedNetworksConfigCidrBlocks(original["cidr_blocks"], d, config)
@@ -1112,6 +1142,10 @@ func expandContainerClusterMasterAuthorizedNetworksConfig(v interface{}, d Terra
 	}
 
 	return transformed, nil
+}
+
+func expandContainerClusterMasterAuthorizedNetworksConfigEnabled(v interface{}, d TerraformResourceData, config *Config) (interface{}, error) {
+	return v, nil
 }
 
 func expandContainerClusterMasterAuthorizedNetworksConfigCidrBlocks(v interface{}, d TerraformResourceData, config *Config) (interface{}, error) {
